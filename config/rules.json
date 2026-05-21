@@ -1,0 +1,127 @@
+{
+  "ruleset": {
+    "name": "orders_validation_rules",
+    "version": "1.0.0",
+    "applies_to_pipeline": "customer_orders_pipeline"
+  },
+  "rules": [
+    {
+      "id": "rule_001",
+      "name": "order_id_not_null",
+      "description": "Every record must have a non-null order_id",
+      "field": "order_id",
+      "type": "not_null",
+      "heal": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "rule_002",
+      "name": "order_id_unique",
+      "description": "order_id must be unique within a batch",
+      "field": "order_id",
+      "heal": {
+        "enabled": true,
+        "strategy": "deduplicate",
+        "dedup_key": "order_id",
+        "keep": "last"
+      }
+    },
+    {
+      "id": "rule_003",
+      "name": "amount_positive",
+      "description": "Order amount must be a positive number",
+      "field": "amount",
+      "type": "range",
+      "min": 0.01,
+      "max": 999999.99,
+      "heal": {
+        "enabled": true,
+        "strategy": "clamp",
+        "clamp_min": 0.01,
+        "clamp_max": 999999.99,
+        "log_correction": true
+      }
+    },
+    {
+      "id": "rule_005",
+      "name": "customer_id_not_null",
+      "description": "Every order must be linked to a customer",
+      "field": "customer_id",
+      "type": "not_null",
+      "heal": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "rule_006",
+      "name": "email_format",
+      "description": "Customer email must match valid email format",
+      "field": "customer_email",
+      "type": "regex",
+      "pattern": "^[\\w._%+\\-]+@[\\w.\\-]+\\.[a-zA-Z]{2,}$",
+      "heal": {
+        "enabled": true,
+        "strategy": "nullify_field",
+        "log_correction": true
+      }
+    },
+    {
+      "id": "rule_007",
+      "name": "created_at_not_future",
+      "description": "Order creation timestamp must not be in the future",
+      "field": "created_at",
+      "type": "date_range",
+      "max": "now",
+      "heal": {
+        "enabled": true,
+        "strategy": "replace_with_current_timestamp",
+        "log_correction": true
+      }
+    },
+    {
+      "id": "rule_008",
+      "name": "schema_fields_present",
+      "description": "All required fields must be present in every record",
+      "type": "schema",
+      "required_fields": ["order_id", "customer_id", "amount", "status", "created_at"],
+      "heal": {
+        "enabled": true,
+        "strategy": "fill_missing_fields",
+        "missing_string": null,
+        "missing_number": 0,
+        "missing_timestamp": "1970-01-01T00:00:00Z",
+        "log_correction": true
+      }
+    },
+    {
+      "id": "rule_009",
+      "name": "row_count_anomaly",
+      "description": "Batch row count must not deviate more than 50% from the 7-day rolling average",
+      "type": "statistical",
+      "metric": "row_count",
+      "check": "rolling_average",
+      "window_days": 7,
+      "deviation_threshold_pct": 50,
+      "heal": {
+        "enabled": true,
+        "strategy": "pause_and_alert",
+        "resume_after_minutes": 30,
+        "alert_channels": ["webhook", "log"]
+      }
+    },
+    {
+      "id": "rule_010",
+      "name": "null_rate_amount",
+      "description": "Null rate on 'amount' field must stay below 5%",
+      "field": "amount",
+      "threshold_pct": 5,
+      "heal": {
+        "enabled": true,
+        "strategy": "fill_null",
+        "fill_value": 0.0,
+        "log_correction": true
+      }
+    }
+  ]
+}

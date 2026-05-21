@@ -1,0 +1,94 @@
+{
+    "pipeline": {
+        "name": "customer_orders_pipeline",
+        "version": "1.0.0",
+        "description": "Ingests customer orders and loads into data warehouse"
+    },
+    "source": {
+        "type": "postgres",
+        "id": "src_orders_db",
+        "schema": "public",
+        "table": "orders",
+        "connection": {
+            "url": "jdbc:postgresql://orders-db.internal:5432/orders_prod",
+            "username": "postgres_user",
+            "password": "your_password"
+        },
+        "extraction": {
+            "mode": "incremental",
+            "incremental_column": "updated_at",
+            "batch_size": 5000,
+            "query_timeout_seconds": 60
+        },
+        "retry": {
+            "max_attempts": 3,
+            "backoff_seconds": [
+                5,
+                15,
+                30
+            ]
+        }
+    },
+    "target": [
+        {
+            "id": "dest_warehouse",
+            "type": "bigquery",
+            "enabled": true,
+            "connection": {
+                "project": "my-data-project",
+                "dataset": "analytics",
+                "table": "orders_fact",
+                "credentials_ref": "env:BQ_SERVICE_ACCOUNT_JSON"
+            },
+            "load": {
+                "mode": "upsert",
+                "primary_key": [
+                    "order_id"
+                ],
+                "write_disposition": "WRITE_APPEND",
+                "partition_field": "created_at"
+            },
+            "retry": {
+                "max_attempts": 3,
+                "backoff_seconds": [
+                    10,
+                    30,
+                    60
+                ]
+            }
+        },
+        {
+            "id": "dest_local_backup",
+            "type": "local_storage",
+            "enabled": true,
+            "connection": {
+                "path": "/data/pipeline/backups/orders",
+                "format": "parquet"
+            },
+            "load": {
+                "mode": "append",
+                "filename_pattern": "orders_{date}_{batch}.parquet"
+            },
+            "retry": {
+                "max_attempts": 2,
+                "backoff_seconds": [
+                    5,
+                    10
+                ]
+            }
+        },
+        {
+            "id": "dest_dead_letter",
+            "type": "local_storage",
+            "enabled": true,
+            "connection": {
+                "path": "/data/pipeline/dead_letter/orders",
+                "format": "json"
+            },
+            "load": {
+                "mode": "append",
+                "filename_pattern": "failed_{date}_{batch}.json"
+            }
+        }
+    ]
+}
