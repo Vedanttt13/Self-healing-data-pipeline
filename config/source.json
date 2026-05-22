@@ -11,8 +11,8 @@
         "table": "orders",
         "connection": {
             "url": "jdbc:postgresql://orders-db.internal:5432/orders_prod",
-            "username": "postgres_user",
-            "password": "your_password"
+            "username": "vedantchaudhari",
+            "password": ""
         },
         "extraction": {
             "mode": "incremental",

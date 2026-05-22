@@ -2,12 +2,12 @@ import json
 import logging
 
 from pyspark.sql import SparkSession
+from dataio import DataReader
+from dataio import DataWriter
+from heal import CodeMaster
 
-from dataio import *
 # from pipeline import pipeline
 
-
-# Configure Logger
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
@@ -15,10 +15,10 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+
 def load_json_config(file_path: str) -> dict:
-    """
-    Load JSON configuration file
-    """
+    """Load JSON configuration"""
+
     try:
         logger.info(f"Loading config file: {file_path}")
 
@@ -26,7 +26,6 @@ def load_json_config(file_path: str) -> dict:
             config = json.load(file)
 
         logger.info(f"Successfully loaded: {file_path}")
-
         return config
 
     except FileNotFoundError:
@@ -38,14 +37,13 @@ def load_json_config(file_path: str) -> dict:
         raise
 
     except Exception as e:
-        logger.error(f"Error loading config file: {str(e)}")
+        logger.error(f"Error loading config file: {e}")
         raise
 
 
 def create_spark_session():
-    """
-    Create Spark Session
-    """
+    """Create Spark Session"""
+
     try:
         logger.info("Creating Spark Session")
 
@@ -54,127 +52,96 @@ def create_spark_session():
             .appName("SelfHealingDataPipeline")
             .getOrCreate()
         )
+
         logger.info("Spark Session created successfully")
         return spark
 
     except Exception as e:
-        logger.error(f"Failed to create Spark Session: {str(e)}")
+        logger.error(f"Failed to create Spark Session: {e}")
         raise
 
 
-def pipeline(rules_dict, input_data, spark):
-    """
-    Main pipeline function
-
-    Parameters:
-    rules_dict : dict Rules configuration
-    input_data : DataFrame Source dataframe
-    spark : SparkSession Active spark session
-    """
-
+def run_pipeline(rules_dict, input_data, spark):
+    """Apply transformations using CodeMaster"""
+ 
     try:
         logger.info("Running pipeline transformations")
-
-        #logic to apply transformations based on rules_dict
-        
-        transformed_df = input_data
+ 
+        master = CodeMaster(
+            rules_dict=rules_dict,
+            input_data=input_data,
+            spark=spark
+        )
+ 
+        correct_df, healed_df, dead_df = master.run()
+ 
         logger.info("Pipeline execution completed")
-        return transformed_df
-
+        return correct_df, healed_df, dead_df
+ 
     except Exception as e:
-        logger.error(f"Pipeline execution failed: {str(e)}")
+        logger.error(f"Pipeline execution failed: {e}")
         raise
-
-def read_data(source_conf, spark):
-    try:
-        logger.info("Reading input data")
-
-        reader = DataReader(source_conf, spark)
-        input_data = reader.data_read()
-
-        logger.info("Data read completed")
-        return input_data
-
-    except Exception as e:
-        logger.error(f"Data read failed: {str(e)}")
-        raise
-
-
-def write_data(source_conf, output_df):
-    """
-    Placeholder write function
-    """
-    try:
-        logger.info("Writing output data")
-
-        # --------------------------------
-        # Add write logic later
-        # --------------------------------
-
-        logger.info("Data write completed")
-
-    except Exception as e:
-        logger.error(f"Data write failed: {str(e)}")
-        raise
-
 
 def elt(source_dict, rules_dict, spark):
-    """
-    ELT Wrapper Function
-    Flow:
-    -----
-    1. Read Data
-    2. Run Pipeline
-    3. Write Data
-    """
+    """Main ELT workflow"""
 
     try:
         logger.info("Starting ELT Process")
 
-        # Get source config
         source_conf = source_dict["source"]
 
-        # Read Input Data
-        input_data = read_data(source_conf, spark)
+        reader = DataReader(source_conf, spark)
+        input_data = reader.data_read()
 
         logger.info("Input data loaded successfully")
 
-        # Run Pipeline
-        output_df = pipeline(rules_dict=rules_dict, input_data=input_data, spark=spark)
+        correct_df, healed_df, dead_df = run_pipeline(
+            rules_dict=rules_dict,
+            input_data=input_data,
+            spark=spark
+        )
 
         logger.info("Pipeline processing completed")
 
-        # Write Output Data
-        write_data(source_conf, output_df)
+        # CHANGE HERE
+        writer = DataWriter(source_dict, spark)
+
+        writer.data_write(correct_df, "correct")
+        writer.data_write(healed_df, "healed")
+        writer.data_write(dead_df, "dead")
 
         logger.info("ELT Process Completed Successfully")
 
     except Exception as e:
-        logger.error(f"ELT Process Failed: {str(e)}")
+        logger.error(f"ELT Process Failed: {e}")
         raise
 
-
 if __name__ == "__main__":
+
+    spark = None
 
     try:
         logger.info("Starting Wrapper")
 
-        # Create Spark Session
         spark = create_spark_session()
 
-        # Load Source Config
         source_dict = load_json_config("source.json")
-
-        # Load Rules Config
         rules_dict = load_json_config("rules.json")
 
         logger.info("Configurations loaded successfully")
 
-        # Run ELT
-        elt(source_dict=source_dict, rules_dict=rules_dict, spark=spark)
+        elt(
+            source_dict=source_dict,
+            rules_dict=rules_dict,
+            spark=spark
+        )
 
         logger.info("Wrapper Execution Completed")
 
     except Exception as e:
+        logger.error(f"Wrapper Execution Failed: {e}")
 
-        logger.error(f"Wrapper Execution Failed: {str(e)}")
+    finally:
+        if spark:
+            spark.stop()
+            logger.info("Spark Session stopped")
