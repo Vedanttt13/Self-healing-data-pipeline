@@ -19,14 +19,6 @@
             "incremental_column": "updated_at",
             "batch_size": 5000,
             "query_timeout_seconds": 60
-        },
-        "retry": {
-            "max_attempts": 3,
-            "backoff_seconds": [
-                5,
-                15,
-                30
-            ]
         }
     },
     "target": [
@@ -47,14 +39,6 @@
                 ],
                 "write_disposition": "WRITE_APPEND",
                 "partition_field": "created_at"
-            },
-            "retry": {
-                "max_attempts": 3,
-                "backoff_seconds": [
-                    10,
-                    30,
-                    60
-                ]
             }
         },
         {
@@ -68,13 +52,6 @@
             "load": {
                 "mode": "append",
                 "filename_pattern": "orders_{date}_{batch}.parquet"
-            },
-            "retry": {
-                "max_attempts": 2,
-                "backoff_seconds": [
-                    5,
-                    10
-                ]
             }
         },
         {

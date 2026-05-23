@@ -1,0 +1,54 @@
+{
+  "pipeline": {
+    "name": "customer_orders_pipeline",
+    "version": "1.0.0",
+    "description": "Self-healing pipeline with Delta storage"
+  },
+
+  "source": {
+    "type": "postgres",
+    "id": "src_orders_db",
+    "schema": "public",
+    "table": "orders",
+    "connection": {
+      "url": "jdbc:postgresql://localhost:5432/testdb",
+      "username": "vedantchaudhari",
+      "password": ""
+    },
+    "extraction": {
+      "mode": "incremental",
+      "incremental_column": "updated_at",
+      "batch_size": 5000
+    }
+  },
+
+  "target": [
+    {
+      "id": "correct_delta",
+      "type": "delta",
+      "enabled": true,
+      "connection": {
+        "path": "../output/correct_delta"
+      }
+    },
+    {
+      "id": "healed_delta",
+      "type": "delta",
+      "enabled": true,
+      "connection": {
+        "path": "../output/healed_delta"
+      }
+    },
+    {
+      "id": "dead_records",
+      "type": "local_storage",
+      "enabled": true,
+      "connection": {
+        "path": "../output/dead_records"
+      },
+      "load": {
+        "format": "parquet"
+      }
+    }
+  ]
+}

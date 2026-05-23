@@ -1,0 +1,70 @@
+{
+  "pipeline": {
+    "name": "customer_orders_pipeline",
+    "version": "1.0.0",
+    "description": "Ingests customer orders and loads into data warehouse"
+  },
+  "source": {
+    "type": "postgres",
+    "id": "src_orders_db",
+    "schema": "public",
+    "table": "orders",
+    "connection": {
+      "url": "jdbc:postgresql://orders-db.internal:5432/orders_prod",
+      "username": "vedantchaudhari",
+      "password": ""
+    },
+    "extraction": {
+      "mode": "incremental",
+      "incremental_column": "updated_at",
+      "batch_size": 5000,
+      "query_timeout_seconds": 60
+    }
+  },
+  "target": [
+    {
+      "id": "dest_s3",
+      "type": "s3",
+      "enabled": true,
+      "connection": {
+        "bucket": "my-data-bucket",
+        "folder": "orders/",
+        "access_key": "YOUR_ACCESS_KEY",
+        "secret_key": "YOUR_SECRET_KEY"
+      },
+      "load": {
+        "format": "parquet"
+      }
+    },
+
+    {
+      "id": "dest_backup",
+      "type": "s3",
+      "enabled": true,
+      "connection": {
+        "bucket": "my-data-bucket",
+        "folder": "backups/orders/",
+        "access_key": "YOUR_ACCESS_KEY",
+        "secret_key": "YOUR_SECRET_KEY"
+      },
+      "load": {
+        "format": "parquet"
+      }
+    },
+
+    {
+      "id": "dest_dead_letter",
+      "type": "s3",
+      "enabled": true,
+      "connection": {
+        "bucket": "my-data-bucket",
+        "folder": "dead_letter/orders/",
+        "access_key": "YOUR_ACCESS_KEY",
+        "secret_key": "YOUR_SECRET_KEY"
+      },
+      "load": {
+        "format": "json"
+      }
+    }
+  ]
+}
