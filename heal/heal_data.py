@@ -337,6 +337,136 @@ class HealData:
                 )
                 self._update_status(invalid_condition, DEAD, log_msg)
 
+    def handle_range(self, rule: dict) -> None:
+        """
+        Rule type: range
+        Validates numeric fields against min/max bounds.
+
+        heal.enabled = false → mark row as dead
+        heal.enabled = true  → clamp values within range and mark healed
+
+        Args:
+            rule: individual rule dict from rules.json
+        """
+
+        rule_id = rule["id"]
+        rule_name = rule["name"]
+
+        field = rule["field"]
+        min_val = rule["min"]
+        max_val = rule["max"]
+
+        heal = rule.get("heal", {})
+        heal_on = heal.get("enabled", False)
+
+        logger.info(
+            f"[{rule_id}] Applying range validation "
+            f"on field '{field}' "
+            f"between {min_val} and {max_val}"
+        )
+
+        invalid_condition = (
+            (
+                (F.col(field) < min_val)
+                | (F.col(field) > max_val)
+                | (F.col(field).isNull())
+            )
+            & (F.col("_status") != DEAD)
+        )
+
+        if not heal_on:
+
+            log_msg = (
+                f"{rule_id}|{rule_name}: "
+                f"field '{field}' outside allowed range "
+                f"[{min_val}, {max_val}]"
+            )
+
+            self._update_status(
+                invalid_condition,
+                DEAD,
+                log_msg
+            )
+
+            logger.info(
+                f"[{rule_id}] Range failures "
+                f"on '{field}' marked dead"
+            )
+
+        else:
+
+            strategy = heal.get("strategy", "clamp")
+
+            if strategy == "clamp":
+
+                clamp_min = heal.get(
+                    "clamp_min",
+                    min_val
+                )
+
+                clamp_max = heal.get(
+                    "clamp_max",
+                    max_val
+                )
+
+                self.df = self.df.withColumn(
+                    field,
+
+                    F.when(
+                        F.col(field) < clamp_min,
+                        F.lit(clamp_min)
+                    )
+
+                    .when(
+                        F.col(field) > clamp_max,
+                        F.lit(clamp_max)
+                    )
+
+                    .when(
+                        F.col(field).isNull(),
+                        F.lit(clamp_min)
+                    )
+
+                    .otherwise(
+                        F.col(field)
+                    )
+                )
+
+                log_msg = (
+                    f"{rule_id}|{rule_name}: "
+                    f"field '{field}' clamped "
+                    f"to range [{clamp_min}, {clamp_max}]"
+                )
+
+                self._update_status(
+                    invalid_condition,
+                    HEALED,
+                    log_msg
+                )
+
+                logger.info(
+                    f"[{rule_id}] Range failures "
+                    f"on '{field}' healed via clamp"
+                )
+
+            else:
+
+                logger.warning(
+                    f"[{rule_id}] Unknown strategy "
+                    f"'{strategy}'"
+                )
+
+                log_msg = (
+                    f"{rule_id}|{rule_name}: "
+                    f"unknown healing strategy '{strategy}'"
+                )
+
+                self._update_status(
+                    invalid_condition,
+                    DEAD,
+                    log_msg
+                )
+
     def get_dataframe(self) -> DataFrame:
         """Return the current state of the DataFrame after all rules applied."""
         return self.df

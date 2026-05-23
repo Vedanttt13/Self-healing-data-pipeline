@@ -1,0 +1,72 @@
+{
+  "pipeline": {
+    "name": "customer_orders_pipeline",
+    "version": "1.0"
+  },
+
+  "source": {
+    "type": "csv",
+    "path": "../data/orders.csv",
+
+    "options": {
+      "header": "true",
+      "inferSchema": "true"
+    }
+  },
+
+  
+  "target": [
+
+    {
+        "name": "clean",
+
+        "type": "local_storage",
+
+        "enabled": true,
+
+        "connection": {
+            "path": "../output",
+            "format": "csv"
+        },
+
+        "load": {
+            "mode": "overwrite"
+        }
+    },
+
+    {
+        "name": "healed",
+
+        "type": "local_storage",
+
+        "enabled": true,
+
+        "connection": {
+            "path": "../output",
+            "format": "csv"
+        },
+
+        "load": {
+            "mode": "overwrite"
+        }
+    },
+
+    {
+        "name": "rejected",
+
+        "type": "local_storage",
+
+        "enabled": true,
+
+        "connection": {
+            "path": "../output",
+            "format": "csv"
+        },
+
+        "load": {
+            "mode": "overwrite"
+        }
+    }
+
+  ]
+}

@@ -1,6 +1,6 @@
 import logging
 from pyspark.sql import functions as F
-from heal_data import HealData
+from .heal_data import HealData
 
 logging.basicConfig(
     level=logging.INFO,
