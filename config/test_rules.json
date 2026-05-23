@@ -1,0 +1,89 @@
+{
+    "ruleset": {
+        "name": "orders_validation_rules",
+        "version": "1.0"
+    },
+
+    "rules": [
+        {
+            "id": "rule_001",
+            "name": "order_id_not_null",
+            "field": "order_id",
+            "type": "not_null",
+
+            "heal": {
+                "enabled": false
+            }
+        },
+
+        {
+            "id": "rule_002",
+            "name": "customer_id_not_null",
+            "field": "customer_id",
+            "type": "not_null",
+
+            "heal": {
+                "enabled": false
+            }
+        },
+
+        {
+            "id": "rule_003",
+            "name": "amount_range",
+            "field": "amount",
+            "type": "range",
+
+            "min": 0.01,
+            "max": 999999.99,
+
+            "heal": {
+                "enabled": true,
+                "strategy": "clamp",
+
+                "clamp_min": 0.01,
+                "clamp_max": 999999.99
+            }
+        },
+
+        {
+            "id": "rule_004",
+            "name": "email_regex",
+            "field": "customer_email",
+            "type": "regex",
+
+            "pattern": "^[\\w._%+-]+@[\\w.-]+\\.[A-Za-z]{2,}$",
+
+            "heal": {
+                "enabled": true,
+                "strategy": "nullify_field"
+            }
+        },
+
+        {
+            "id": "rule_005",
+            "name": "future_timestamp",
+            "field": "created_at",
+            "type": "date_range",
+
+            "max": "now",
+
+            "heal": {
+                "enabled": true,
+                "strategy": "replace_with_current_timestamp"
+            }
+        },
+
+        {
+            "id": "rule_006",
+            "name": "duplicate_order",
+            "field": "order_id",
+            "type": "duplicate",
+
+            "heal": {
+                "enabled": true,
+                "strategy": "deduplicate",
+                "keep": "last"
+            }
+        }
+    ]
+}
